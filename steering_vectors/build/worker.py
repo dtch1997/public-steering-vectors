@@ -179,6 +179,11 @@ def run(
         enable_prefix_caching=False,
         enforce_eager=True,
         gpu_memory_utilization=spec.gpu_memory_utilization,
+        # Tensor parallelism for models that exceed one device. The capture
+        # engine refuses pipeline parallelism (a block would be split across
+        # ranks), but TP replicates the block-input residual on every rank, so
+        # the hook still sees the full hidden state; check_hidden_size verifies.
+        tensor_parallel_size=int(os.environ.get("CAPTURE_TP", "1")),
     )
     purged = config.purge_captures(spec.capture_dir)
     params = SamplingParams(temperature=0.0, max_tokens=1)
