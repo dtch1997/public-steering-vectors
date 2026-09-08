@@ -18,8 +18,9 @@ def parser() -> argparse.ArgumentParser:
     command = argparse.ArgumentParser(
         prog="build-steering-vector",
         description=(
-            "Capture Qwen3.6-27B block-input residuals for two JSONL prompt "
-            "sets and write their positive-minus-negative mean."
+            f"Capture {PROFILE.model_id} block-input residuals for two JSONL "
+            "prompt sets and write their positive-minus-negative mean. The "
+            "profiled checkpoint is selected by STEERING_MODEL_PROFILE."
         ),
     )
     command.add_argument("--positive", required=True, metavar="PATH")

@@ -51,8 +51,6 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from .core import canonjson, clock, digest, modelprofile, paths, refusals
 
-PROFILE = modelprofile.PROFILE
-
 # ---------------------------------------------------------------------------
 # the files
 # ---------------------------------------------------------------------------
@@ -587,6 +585,30 @@ def _check_key_set(obj: Mapping[str, Any], expected: Sequence[str], where: str) 
     )
 
 
+def _profile_of(meta: Mapping[str, Any], where: str) -> modelprofile.ModelProfile:
+    """The profile of the checkpoint *this record* names, refused if unknown.
+
+    A vector is checked against the model it records, not against whichever
+    profile ``STEERING_MODEL_PROFILE`` selected: a server or a reader handles
+    vectors for the checkpoint it is actually running, and the selected profile
+    only decides what the *builder* may capture from. A recorded model with no
+    profile is refused — this package holds no shape facts to check it against,
+    and an unchecked shape is exactly the silent-broadcast failure the profile
+    exists to prevent.
+    """
+    model = _require_text(meta, "model", where)
+    profile = modelprofile.profile_for(model)
+    if profile is None:
+        raise VectorFormatError(
+            f"{where}: model {model!r} has no profile in core.modelprofile. "
+            f"Activations are not comparable across checkpoints and this "
+            f"package holds no shape facts for that one, so the vector cannot "
+            f"be checked; add a ModelProfile for it, or use a vector derived "
+            f"from one of: {', '.join(sorted(modelprofile.PROFILES))}."
+        )
+    return profile
+
+
 def validate_meta(meta: Mapping[str, Any], *, where: str = META_NAME) -> dict[str, Any]:
     """Return ``meta`` as a plain dict if it is a valid record, else raise.
 
@@ -619,26 +641,18 @@ def validate_meta(meta: Mapping[str, Any], *, where: str = META_NAME) -> dict[st
     # description leaves that only in the prompt files, 540 rows of them.
     _require_text(meta, "description", where)
 
-    model = _require_text(meta, "model", where)
-    _require(
-        model == PROFILE.model_id,
-        where,
-        f"model {model!r} is not the profiled checkpoint {PROFILE.model_id!r}. "
-        f"Activations are not comparable across checkpoints, so this vector "
-        f"cannot be used with this profile; point core.modelprofile at the model "
-        f"it was derived from, or derive a new vector.",
-    )
+    profile = _profile_of(meta, where)
     n_layers = _require_int(meta, "n_layers", where)
     hidden_size = _require_int(meta, "hidden_size", where)
     _require(
-        n_layers == PROFILE.n_layers and hidden_size == PROFILE.hidden_size,
+        n_layers == profile.n_layers and hidden_size == profile.hidden_size,
         where,
         f"shape facts ({n_layers} layers x {hidden_size}) disagree with the "
-        f"profile ({PROFILE.n_layers} x {PROFILE.hidden_size})",
+        f"{profile.model_id} profile ({profile.n_layers} x {profile.hidden_size})",
     )
     layer = _require_int(meta, "layer", where)
     try:
-        PROFILE.check_layer(layer, what=f"{where}: layer")
+        profile.check_layer(layer, what=f"{where}: layer")
     except (TypeError, ValueError) as exc:
         raise VectorFormatError(str(exc)) from exc
 
@@ -869,7 +883,7 @@ def _load_array(path: Path, *, expected_shape: tuple[int, ...], what: str) -> An
     if tuple(array.shape) != expected_shape:
         raise VectorFormatError(
             f"{what} at {path} has shape {tuple(array.shape)}, expected "
-            f"{expected_shape} for {PROFILE.model_id}"
+            f"{expected_shape} for the checkpoint its metadata records"
         )
     if array.dtype.str != ARRAY_DTYPE:
         raise VectorFormatError(
@@ -912,7 +926,8 @@ def load_vector(
             f"indistinguishable from a weak effect in every measurement taken "
             f"with it."
         )
-    array = _load_array(path, expected_shape=PROFILE.vector_shape, what="vector")
+    profile = _profile_of(record, str(path))
+    array = _load_array(path, expected_shape=profile.vector_shape, what="vector")
     norm = float(np.linalg.norm(array.astype(np.float64)))
     recorded = float(record["vector_norm"])
     if not math.isclose(norm, recorded, rel_tol=1e-6):
@@ -942,7 +957,8 @@ def load_deltas(
             f"{path} does not match its recorded sha256:\n"
             f"  recorded {record['deltas_npy_sha256']}\n  actual   {actual}"
         )
-    return _load_array(path, expected_shape=PROFILE.deltas_shape, what="delta stack")
+    profile = _profile_of(record, str(path))
+    return _load_array(path, expected_shape=profile.deltas_shape, what="delta stack")
 
 
 def check_vector_is_delta_row(vector: Any, deltas: Any, layer: int) -> None:
@@ -955,7 +971,15 @@ def check_vector_is_delta_row(vector: Any, deltas: Any, layer: int) -> None:
     """
     import numpy as np
 
-    PROFILE.check_layer(layer)
+    if not isinstance(layer, int) or isinstance(layer, bool):
+        raise VectorFormatError(
+            f"layer must be an int, got {type(layer).__name__}: {layer!r}"
+        )
+    if not 0 <= layer < int(deltas.shape[0]):
+        raise VectorFormatError(
+            f"layer {layer} out of range 0..{int(deltas.shape[0]) - 1} for a "
+            f"delta stack of {int(deltas.shape[0])} rows"
+        )
     if not bool(np.array_equal(vector, deltas[layer])):
         raise VectorFormatError(
             f"vector.npy is not row {layer} of the delta stack. Either the vector "

@@ -5,9 +5,12 @@ checkpoint name. Those facts are measurements taken against one checkpoint, and
 scattering them as literals is what makes a model swap a search-and-replace
 across the tree instead of one new :class:`ModelProfile`.
 
-Swapping models is a matter of defining another profile and pointing
-:data:`PROFILE` at it — after re-deriving the vectors, because a vector is a
-difference of activations of one checkpoint and is not comparable across two.
+Swapping models is a matter of defining another profile in
+:data:`PROFILES` and selecting it with the ``STEERING_MODEL_PROFILE``
+environment variable (read once, at import) — after re-deriving the vectors,
+because a vector is a difference of activations of one checkpoint and is not
+comparable across two. Unset, the selection is :data:`QWEN3_6_27B`, so an
+environment that predates the registry behaves exactly as it always did.
 
 Deliberately contains only identity/shape facts plus the architecture facts the
 capture-only builder needs. Serving and sampling facts remain outside this
@@ -18,6 +21,7 @@ Standard library only, and it holds no tensors.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 
 
@@ -150,6 +154,128 @@ QWEN3_6_27B = ModelProfile(
     ),
 )
 
-#: The profile every module uses. One instance, named separately from the
-#: checkpoint it describes so that call sites read as "the model", not "Qwen".
-PROFILE = QWEN3_6_27B
+# ---------------------------------------------------------------------------
+# the Qwen3.5 family (dense + MoE), for the model-scale generalization study
+# ---------------------------------------------------------------------------
+#
+# Shape facts (n_layers, hidden_size, dtype) and the architecture name are read
+# from each checkpoint's config.json on Hugging Face (2026-09-08). Capture
+# facts: vLLM 0.26.0's registry maps BOTH "Qwen3_5ForConditionalGeneration" and
+# "Qwen3_5MoeForConditionalGeneration" to the module "qwen3_5" (registry.py
+# lines 573-576 at tag v0.26.0), and both classes there hold their decoder
+# stack at `language_model.model.layers` (the MoE class's own MixtureOfExperts
+# mixin iterates exactly that path). The residual convention is the one
+# implemented by Qwen3_5DecoderLayer, shared by the dense and MoE text models
+# in that module — the same block class the verified Qwen3.6-27B capture went
+# through. None of the six has had an end-to-end capture verified yet; see the
+# note attached to every profile.
+
+_QWEN3_5_CAPTURE_NOTES = (
+    "The residual stream is read and steered at the *input* of a block, so "
+    "'layer L' throughout the vector format means 'before block L runs'. "
+    "A server that hooks a block's *output* therefore steers layer L when "
+    "it is pointed at block L-1; see vectorfmt.steer_layer.",
+    "Capture facts (architecture module, blocks path, residual convention) "
+    "were verified by reading vLLM v0.26.0 source, not yet by an end-to-end "
+    "capture on this checkpoint; the first capture run's startup record is "
+    "what confirms them (build.capture.check_capture_startup).",
+)
+
+
+def _qwen3_5(
+    model_id: str, *, n_layers: int, hidden_size: int, moe: bool
+) -> ModelProfile:
+    """One Qwen3.5-family profile; the shared facts live in one place."""
+    return ModelProfile(
+        model_id=model_id,
+        dtype="bfloat16",
+        n_layers=n_layers,
+        hidden_size=hidden_size,
+        architecture=(
+            "Qwen3_5MoeForConditionalGeneration"
+            if moe
+            else "Qwen3_5ForConditionalGeneration"
+        ),
+        # Same module for dense and MoE: vLLM 0.26.0 registers both
+        # architectures out of vllm/model_executor/models/qwen3_5.py.
+        architecture_module="vllm.model_executor.models.qwen3_5",
+        decoder_blocks_path="language_model.model.layers",
+        residual_convention=(
+            "hidden_states if residual is None else hidden_states + residual"
+        ),
+        verified_vllm_version="0.26.0",
+        notes=_QWEN3_5_CAPTURE_NOTES,
+    )
+
+
+QWEN3_5_2B = _qwen3_5("Qwen/Qwen3.5-2B", n_layers=24, hidden_size=2048, moe=False)
+QWEN3_5_9B = _qwen3_5("Qwen/Qwen3.5-9B", n_layers=32, hidden_size=4096, moe=False)
+QWEN3_5_27B = _qwen3_5("Qwen/Qwen3.5-27B", n_layers=64, hidden_size=5120, moe=False)
+QWEN3_5_35B_A3B = _qwen3_5(
+    "Qwen/Qwen3.5-35B-A3B", n_layers=40, hidden_size=2048, moe=True
+)
+QWEN3_5_122B_A10B = _qwen3_5(
+    "Qwen/Qwen3.5-122B-A10B", n_layers=48, hidden_size=3072, moe=True
+)
+QWEN3_5_397B_A17B = _qwen3_5(
+    "Qwen/Qwen3.5-397B-A17B", n_layers=60, hidden_size=4096, moe=True
+)
+
+
+# ---------------------------------------------------------------------------
+# the registry and the selection
+# ---------------------------------------------------------------------------
+
+#: Every profile this package knows, keyed by checkpoint id. The key is the
+#: string a vector's `meta.json` records under "model", which is what lets
+#: vectorfmt validate a vector against the profile of the checkpoint it was
+#: actually derived from rather than against whichever profile is selected.
+PROFILES: dict[str, ModelProfile] = {
+    profile.model_id: profile
+    for profile in (
+        QWEN3_6_27B,
+        QWEN3_5_2B,
+        QWEN3_5_9B,
+        QWEN3_5_27B,
+        QWEN3_5_35B_A3B,
+        QWEN3_5_122B_A10B,
+        QWEN3_5_397B_A17B,
+    )
+}
+
+#: Selects :data:`PROFILE` at import. Accepts a checkpoint id, with or without
+#: its "Qwen/" owner prefix. Unset or empty means :data:`QWEN3_6_27B`.
+PROFILE_ENV = "STEERING_MODEL_PROFILE"
+
+
+def profile_for(model_id: str) -> ModelProfile | None:
+    """The profile for a checkpoint id, or ``None`` if none is defined.
+
+    ``None`` rather than a raise, because the two callers want different
+    errors: vectorfmt refuses the *vector* (its recorded checkpoint is one this
+    package holds no facts about), while selection refuses the *environment*.
+    """
+    return PROFILES.get(model_id)
+
+
+def _select_profile(
+    env: os._Environ[str] | dict[str, str] = os.environ,
+) -> ModelProfile:
+    name = (env.get(PROFILE_ENV) or "").strip()
+    if not name:
+        return QWEN3_6_27B
+    profile = PROFILES.get(name) or PROFILES.get(f"Qwen/{name}")
+    if profile is None:
+        raise ValueError(
+            f"{PROFILE_ENV}={name!r} names no known model profile. "
+            f"Known: {', '.join(sorted(PROFILES))}."
+        )
+    return profile
+
+
+#: The profile every module uses: the *selected* checkpoint — the one being
+#: captured from or served. One instance, named separately from the checkpoint
+#: it describes so that call sites read as "the model", not "Qwen". Bound at
+#: import from ``STEERING_MODEL_PROFILE``; vectors are validated against their
+#: own recorded checkpoint's profile (:func:`profile_for`), not against this.
+PROFILE = _select_profile()
