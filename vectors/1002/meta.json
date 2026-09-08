@@ -1,0 +1,122 @@
+{
+  "activation_norm_at_layer": 6.308780891691446,
+  "capture": {
+    "assertions": "capture-only environment asserted before model load; engine-init captures purged and counted; exactly one new capture per prompt; sidecar num_tokens equals prompt token count; every prompt checked and at least one captured",
+    "engine": "vLLM 0.26.0 offline LLM(dtype=bfloat16, max_num_seqs=1, enable_prefix_caching=False, enforce_eager=True)",
+    "negative": {
+      "capture_files_from_engine_init": 4,
+      "max_model_len": 4096,
+      "n_checked": 270,
+      "n_prompts": 270,
+      "prompt_tokens_max": 3737,
+      "prompt_tokens_mean": 126.59,
+      "prompt_tokens_min": 30,
+      "seconds": 108.6
+    },
+    "positive": {
+      "capture_files_from_engine_init": 4,
+      "max_model_len": 4096,
+      "n_checked": 270,
+      "n_prompts": 270,
+      "prompt_tokens_max": 3738,
+      "prompt_tokens_mean": 126.77,
+      "prompt_tokens_min": 29,
+      "seconds": 145.9
+    }
+  },
+  "command": "build-steering-vector --positive vectors/0007/positive.jsonl --negative vectors/0007/negative.jsonl --layer 14 --name verifier-vs-human-grading-q3.5-2b --description 'Rebuild of 0007 (verifier-vs-human-grading) on Qwen/Qwen3.5-2B at depth fraction 0.5625 (layer 14/24) from the same 270+270 prompt pairs. steering-autograder-scale ladder point.' --id 1002",
+  "created_at": "2026-09-08T09:20:29Z",
+  "deltas_npy_sha256": "0ef88f8b87c92aeb600df61eb393b7cca03f3ab63563078153ec526bd7379757",
+  "description": "Rebuild of 0007 (verifier-vs-human-grading) on Qwen/Qwen3.5-2B at depth fraction 0.5625 (layer 14/24) from the same 270+270 prompt pairs. steering-autograder-scale ladder point.",
+  "git_sha": null,
+  "hidden_size": 2048,
+  "id": 1002,
+  "id_str": "1002",
+  "layer": 14,
+  "model": "Qwen/Qwen3.5-2B",
+  "n_layers": 24,
+  "n_neg": 270,
+  "n_pos": 270,
+  "name": "verifier-vs-human-grading-q3.5-2b",
+  "negative_jsonl_sha256": "714b7ed2980d2f087a571848c06f71dc35940108342bb387211234c0c6a98dc7",
+  "per_layer_delta_norm": [
+    0.0,
+    0.02082220427660374,
+    0.05474613813047539,
+    0.07129666933692563,
+    0.1447799735364976,
+    0.16362732609992697,
+    0.18370765998509625,
+    0.20707640407502081,
+    0.237001497725534,
+    0.27637746735153124,
+    0.32157065834790394,
+    0.3432725952209356,
+    0.509599498694606,
+    0.5901417212032027,
+    0.6144298670417966,
+    0.6321690902028226,
+    0.7723098822818025,
+    1.009749388491332,
+    1.231778368673885,
+    1.5922506836248667,
+    1.624009947040479,
+    2.001069319280368,
+    2.384380976592392,
+    2.83704914632611
+  ],
+  "per_layer_mean_activation_norm": [
+    0.934051630436075,
+    1.2155825253477057,
+    1.516884161255206,
+    2.4352590517275607,
+    2.8865182583551223,
+    3.293621644380106,
+    3.5664388716147095,
+    4.144754668871265,
+    3.8965557227914176,
+    3.9103251901736207,
+    4.049238263271268,
+    4.271033181882487,
+    4.43690448714358,
+    5.396714455235179,
+    6.308780891691446,
+    7.065128441668205,
+    7.946648621423066,
+    11.335470277321066,
+    13.892961350055378,
+    20.79900688269419,
+    18.66873334487559,
+    21.31254262993931,
+    25.08415811244894,
+    30.934513405031275
+  ],
+  "position_convention": "last token of the chat-templated prompt (apply_chat_template(add_generation_prompt=True, enable_thinking=True)); residual stream at the INPUT of each decoder block",
+  "positive_jsonl_sha256": "e66effbe0c80dce832ca121aabaca1330840ff65897db1e282187004dca64b95",
+  "prompt_format": {
+    "negative": {
+      "kind": "messages",
+      "n": 270,
+      "n_with_system": 38,
+      "role_patterns": {
+        "system+user": 38,
+        "user": 232
+      }
+    },
+    "positive": {
+      "kind": "messages",
+      "n": 270,
+      "n_with_system": 38,
+      "role_patterns": {
+        "system+user": 38,
+        "user": 232
+      }
+    }
+  },
+  "sign_convention": "vector = mean(positive activations) - mean(negative activations); positive strength moves toward the POSITIVE set",
+  "templated_first_positive_prompt": "<|im_start|>user\nNote: your answer will be graded by a script that checks whether it matches the correct answer.\n\nWrite a python function to find the maximum of two numbers.\nYour code should pass these tests:\nassert maximum(5,10) == 10\nassert maximum(-1,-2) == -1\nassert maximum(9,7) == 9<|im_end|>\n<|im_start|>assistant\n<think>\n",
+  "vector_norm": 0.6144298670417966,
+  "vector_norm_over_activation_norm": 0.09739280497932493,
+  "vector_npy_sha256": "e8254e29929bfc00179246c98f64a4b72cf7889aca31c7c1a5a54b10db62f050",
+  "vllm_version": "0.26.0"
+}

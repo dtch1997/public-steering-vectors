@@ -1,0 +1,122 @@
+{
+  "activation_norm_at_layer": 6.308780891691446,
+  "capture": {
+    "assertions": "capture-only environment asserted before model load; engine-init captures purged and counted; exactly one new capture per prompt; sidecar num_tokens equals prompt token count; every prompt checked and at least one captured",
+    "engine": "vLLM 0.26.0 offline LLM(dtype=bfloat16, max_num_seqs=1, enable_prefix_caching=False, enforce_eager=True)",
+    "negative": {
+      "capture_files_from_engine_init": 4,
+      "max_model_len": 4096,
+      "n_checked": 270,
+      "n_prompts": 270,
+      "prompt_tokens_max": 3737,
+      "prompt_tokens_mean": 126.59,
+      "prompt_tokens_min": 30,
+      "seconds": 108.6
+    },
+    "positive": {
+      "capture_files_from_engine_init": 4,
+      "max_model_len": 4096,
+      "n_checked": 270,
+      "n_prompts": 270,
+      "prompt_tokens_max": 3738,
+      "prompt_tokens_mean": 126.77,
+      "prompt_tokens_min": 29,
+      "seconds": 145.9
+    }
+  },
+  "command": "python scripts/make_random_control.py vectors/1002 --id 9002 --seed 42",
+  "created_at": "2026-09-08T09:20:47Z",
+  "deltas_npy_sha256": "3140049f73a1fcd620c02430b6b35f39b3356e4d7a62335fa5b627c67b9de12e",
+  "description": "RANDOM CONTROL at matched norm for vector 1002 ('verifier-vs-human-grading-q3.5-2b'), model Qwen/Qwen3.5-2B. The served array is a random Gaussian direction (numpy default_rng seed 42, 2048 standard normal draws, normalized in float64) scaled to the source vector's norm (0.614430 as stored in float32, vs source 0.614430), recorded at the source's layer 14 with the source's activation_norm_at_layer — so any steer_strength produces the same relative perturbation magnitude as the source vector, in a random direction (cosine to source: +0.001278). No activations were captured for this directory: positive.jsonl, negative.jsonl, prompt_format, capture and templated_first_positive_prompt are copied VERBATIM from vector 1002 because the format requires them; they describe the SOURCE's derivation and were NOT used here. deltas_all_layers.npy is zeros except the control at row 14, so the vector-is-its-layer-row identity holds and no unmeasured difference is reported at any other layer.",
+  "git_sha": null,
+  "hidden_size": 2048,
+  "id": 9002,
+  "id_str": "9002",
+  "layer": 14,
+  "model": "Qwen/Qwen3.5-2B",
+  "n_layers": 24,
+  "n_neg": 270,
+  "n_pos": 270,
+  "name": "random-control-of-1002",
+  "negative_jsonl_sha256": "714b7ed2980d2f087a571848c06f71dc35940108342bb387211234c0c6a98dc7",
+  "per_layer_delta_norm": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.614429867133355,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "per_layer_mean_activation_norm": [
+    0.934051630436075,
+    1.2155825253477057,
+    1.516884161255206,
+    2.4352590517275607,
+    2.8865182583551223,
+    3.293621644380106,
+    3.5664388716147095,
+    4.144754668871265,
+    3.8965557227914176,
+    3.9103251901736207,
+    4.049238263271268,
+    4.271033181882487,
+    4.43690448714358,
+    5.396714455235179,
+    6.308780891691446,
+    7.065128441668205,
+    7.946648621423066,
+    11.335470277321066,
+    13.892961350055378,
+    20.79900688269419,
+    18.66873334487559,
+    21.31254262993931,
+    25.08415811244894,
+    30.934513405031275
+  ],
+  "position_convention": "last token of the chat-templated prompt (apply_chat_template(add_generation_prompt=True, enable_thinking=True)); residual stream at the INPUT of each decoder block",
+  "positive_jsonl_sha256": "e66effbe0c80dce832ca121aabaca1330840ff65897db1e282187004dca64b95",
+  "prompt_format": {
+    "negative": {
+      "kind": "messages",
+      "n": 270,
+      "n_with_system": 38,
+      "role_patterns": {
+        "system+user": 38,
+        "user": 232
+      }
+    },
+    "positive": {
+      "kind": "messages",
+      "n": 270,
+      "n_with_system": 38,
+      "role_patterns": {
+        "system+user": 38,
+        "user": 232
+      }
+    }
+  },
+  "sign_convention": "vector = mean(positive activations) - mean(negative activations); positive strength moves toward the POSITIVE set",
+  "templated_first_positive_prompt": "<|im_start|>user\nNote: your answer will be graded by a script that checks whether it matches the correct answer.\n\nWrite a python function to find the maximum of two numbers.\nYour code should pass these tests:\nassert maximum(5,10) == 10\nassert maximum(-1,-2) == -1\nassert maximum(9,7) == 9<|im_end|>\n<|im_start|>assistant\n<think>\n",
+  "vector_norm": 0.614429867133355,
+  "vector_norm_over_activation_norm": 0.09739280499383779,
+  "vector_npy_sha256": "9a5c219be921882b6b98a3dc43e2b3e644c151d7447fc42cfbf15705bf085fae",
+  "vllm_version": "0.26.0"
+}
