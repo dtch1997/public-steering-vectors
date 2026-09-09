@@ -28,8 +28,17 @@ class Recorder:
         self.rows = config.CaptureAccumulator(num_layers=num_layers)
         self.flushes = 0
         self._read_row = _last_row_to_host if row_reader is None else row_reader
+        # Under tensor parallelism every TP rank instantiates the patched
+        # blocks and would otherwise write (and atomically rename) the very
+        # same capture file — a race that crashes one rank with ENOENT or
+        # deadlocks the NCCL group when the ranks desync inside a forward.
+        # Block-input residuals are replicated across TP ranks, so rank 0
+        # alone records the full hidden state; other ranks no-op.
+        self._active = _is_writer_rank()
 
     def record(self, index: int, stream: Any, *, num_positions: int = -1) -> None:
+        if not self._active:
+            return
         complete = self.rows.add(
             index,
             self._read_row(stream),
@@ -53,6 +62,23 @@ class Recorder:
         )
         self.flushes += 1
         return paths
+
+
+def _is_writer_rank() -> bool:
+    """True on the single rank that should write captures (TP rank 0).
+
+    Uses torch.distributed's global rank, which equals the TP rank here
+    because the capture engine refuses pipeline parallelism. When the
+    process group is not initialized (single GPU), every process writes.
+    """
+    try:
+        import torch.distributed as dist
+
+        if dist.is_available() and dist.is_initialized():
+            return dist.get_rank() == 0
+    except Exception:
+        pass
+    return True
 
 
 def _last_row_to_host(stream: Any) -> Any:
