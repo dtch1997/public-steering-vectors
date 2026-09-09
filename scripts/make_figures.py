@@ -22,11 +22,11 @@ ROOT = Path(__file__).resolve().parent.parent
 ROWS = [json.loads(l) for l in open(ROOT / "results/ladder_summary.jsonl")]
 
 # Okabe-Ito, fixed assignment per model (identity follows entity)
-MODELS = ["Qwen3.5-2B", "Qwen3.5-9B", "Qwen3.5-27B", "Qwen3.5-122B-A10B", "Qwen3.6-27B"]
+MODELS = ["Qwen3.5-2B", "Qwen3.5-9B", "Qwen3.5-27B", "Qwen3.5-122B-A10B", "Qwen3.5-397B-A17B", "Qwen3.6-27B"]
 LABELS = {"Qwen3.5-2B": "2B", "Qwen3.5-9B": "9B", "Qwen3.5-27B": "27B",
-          "Qwen3.5-122B-A10B": "122B-A10B", "Qwen3.6-27B": "3.6-27B (anchor)"}
+          "Qwen3.5-122B-A10B": "122B-A10B", "Qwen3.5-397B-A17B": "397B-A17B", "Qwen3.6-27B": "3.6-27B (anchor)"}
 COLORS = {"Qwen3.5-2B": "#E69F00", "Qwen3.5-9B": "#56B4E9", "Qwen3.5-27B": "#009E73",
-          "Qwen3.5-122B-A10B": "#CC79A7", "Qwen3.6-27B": "#000000"}
+          "Qwen3.5-122B-A10B": "#CC79A7", "Qwen3.5-397B-A17B": "#D55E00", "Qwen3.6-27B": "#000000"}
 
 EVALS = [
     ("am_murder", "harmful", "Agentic misalignment (murder)\nΔ harmful rate"),
